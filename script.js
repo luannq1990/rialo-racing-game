@@ -1,106 +1,95 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-canvas.width = 400;
-canvas.height = 600;
+canvas.width = 800;
+canvas.height = 400;
 
-// Load hình ảnh
+// Load images
 const playerImg = new Image();
-playerImg.src = "images/player.png";
+playerImg.src = "assets/player.png";
 
 const obstacleImg = new Image();
-obstacleImg.src = "images/obstacle.png";
+obstacleImg.src = "assets/obstacle.png";
 
-// Người chơi
-let player = {
-  x: 180,
-  y: 500,
-  width: 40,
-  height: 40,
+// Player
+const player = {
+  x: 50,
+  y: canvas.height - 100,
+  width: 60,
+  height: 60,
   speed: 5
 };
 
-// Chướng ngại vật
-let obstacles = [];
-let frame = 0;
-let score = 0;
-let speed = 3; // tốc độ ban đầu
-
-// Xử lý phím bấm
+// Movement
 let keys = {};
 document.addEventListener("keydown", (e) => keys[e.key] = true);
 document.addEventListener("keyup", (e) => keys[e.key] = false);
 
-// Vẽ nhân vật
-function drawPlayer() {
-  ctx.drawImage(playerImg, player.x, player.y, player.width, player.height);
-}
+// Obstacle list
+let obstacles = [];
+let gameSpeed = 3;
+let score = 0;
 
-// Vẽ chướng ngại vật
-function drawObstacles() {
-  obstacles.forEach(obs => {
-    ctx.drawImage(obstacleImg, obs.x, obs.y, obs.width, obs.height);
+// Spawn obstacle
+function spawnObstacle() {
+  obstacles.push({
+    x: canvas.width,
+    y: canvas.height - 80,
+    width: 50,
+    height: 50
   });
 }
 
-// Cập nhật vị trí
+// Collision check
+function isColliding(a, b) {
+  return (
+    a.x < b.x + b.width &&
+    a.x + a.width > b.x &&
+    a.y < b.y + b.height &&
+    a.y + a.height > b.y
+  );
+}
+
+let frame = 0;
 function update() {
-  if (keys["ArrowLeft"] && player.x > 0) player.x -= player.speed;
-  if (keys["ArrowRight"] && player.x < canvas.width - player.width) player.x += player.speed;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw player
   if (keys["ArrowUp"] && player.y > 0) player.y -= player.speed;
   if (keys["ArrowDown"] && player.y < canvas.height - player.height) player.y += player.speed;
+  if (keys["ArrowLeft"] && player.x > 0) player.x -= player.speed;
+  if (keys["ArrowRight"] && player.x < canvas.width - player.width) player.x += player.speed;
+  ctx.drawImage(playerImg, player.x, player.y, player.width, player.height);
 
-  // Thêm chướng ngại vật mới
-  frame++;
-  if (frame % 60 === 0) {
-    let obsX = Math.random() * (canvas.width - 40);
-    obstacles.push({ x: obsX, y: -40, width: 40, height: 40 });
-  }
+  // Handle obstacles
+  for (let i = 0; i < obstacles.length; i++) {
+    let obs = obstacles[i];
+    obs.x -= gameSpeed;
+    ctx.drawImage(obstacleImg, obs.x, obs.y, obs.width, obs.height);
 
-  // Cập nhật vị trí chướng ngại vật
-  obstacles.forEach(obs => {
-    obs.y += speed;
-  });
-
-  // Xoá chướng ngại vật ngoài màn
-  obstacles = obstacles.filter(obs => obs.y < canvas.height);
-
-  // Kiểm tra va chạm
-  obstacles.forEach(obs => {
-    if (player.x < obs.x + obs.width &&
-        player.x + player.width > obs.x &&
-        player.y < obs.y + obs.height &&
-        player.y + player.height > obs.y) {
-      alert("💥 Game Over! Điểm của bạn: " + score);
+    if (isColliding(player, obs)) {
+      alert("Game Over! Score: " + score);
       document.location.reload();
     }
-  });
-
-  // Tăng điểm & tốc độ dần
-  if (frame % 30 === 0) {
-    score++;
-    if (score % 10 === 0) speed += 0.5; // mỗi 10 điểm tăng tốc
   }
-}
 
-// Vẽ điểm
-function drawScore() {
+  // Remove passed obstacles
+  obstacles = obstacles.filter(obs => obs.x + obs.width > 0);
+
+  // Spawn new obstacles
+  if (frame % 120 === 0) {
+    spawnObstacle();
+    score++;
+    gameSpeed += 0.2; // tăng tốc độ dần
+  }
+
+  // Score
   ctx.fillStyle = "white";
   ctx.font = "20px Arial";
-  ctx.fillText("Điểm: " + score, 10, 30);
+  ctx.fillText("Score: " + score, 10, 30);
+
+  frame++;
+  requestAnimationFrame(update);
 }
 
-// Game loop
-function gameLoop() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawPlayer();
-  drawObstacles();
-  drawScore();
-  update();
-  requestAnimationFrame(gameLoop);
-}
-
-// Bắt đầu game khi ảnh đã load
-playerImg.onload = () => {
-  gameLoop();
-};
+update();
