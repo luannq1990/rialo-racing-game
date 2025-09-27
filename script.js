@@ -11,24 +11,38 @@ playerImg.src = "assets/player.png";
 const obstacleImg = new Image();
 obstacleImg.src = "assets/obstacle.png";
 
+const bgImg = new Image();
+bgImg.src = "assets/background.jpg";
+
 // Player
 const player = {
-  x: 50,
-  y: canvas.height - 100,
+  x: 100,
+  y: canvas.height - 120,
   width: 60,
   height: 60,
-  speed: 5
+  dy: 0,
+  gravity: 0.6,
+  jumpPower: -12,
+  grounded: false
 };
 
 // Movement
-let keys = {};
-document.addEventListener("keydown", (e) => keys[e.key] = true);
-document.addEventListener("keyup", (e) => keys[e.key] = false);
+document.addEventListener("keydown", (e) => {
+  if (e.key === " " || e.key === "ArrowUp") {
+    if (player.grounded) {
+      player.dy = player.jumpPower;
+      player.grounded = false;
+    }
+  }
+});
 
-// Obstacle list
+// Obstacles
 let obstacles = [];
-let gameSpeed = 3;
+let gameSpeed = 4;
 let score = 0;
+
+// Background scroll
+let bgX = 0;
 
 // Spawn obstacle
 function spawnObstacle() {
@@ -40,7 +54,7 @@ function spawnObstacle() {
   });
 }
 
-// Collision check
+// Collision
 function isColliding(a, b) {
   return (
     a.x < b.x + b.width &&
@@ -54,14 +68,25 @@ let frame = 0;
 function update() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Draw player
-  if (keys["ArrowUp"] && player.y > 0) player.y -= player.speed;
-  if (keys["ArrowDown"] && player.y < canvas.height - player.height) player.y += player.speed;
-  if (keys["ArrowLeft"] && player.x > 0) player.x -= player.speed;
-  if (keys["ArrowRight"] && player.x < canvas.width - player.width) player.x += player.speed;
+  // Background scroll
+  bgX -= gameSpeed / 2;
+  if (bgX <= -canvas.width) bgX = 0;
+  ctx.drawImage(bgImg, bgX, 0, canvas.width, canvas.height);
+  ctx.drawImage(bgImg, bgX + canvas.width, 0, canvas.width, canvas.height);
+
+  // Player physics
+  player.y += player.dy;
+  player.dy += player.gravity;
+
+  if (player.y + player.height >= canvas.height - 20) {
+    player.y = canvas.height - player.height - 20;
+    player.dy = 0;
+    player.grounded = true;
+  }
+
   ctx.drawImage(playerImg, player.x, player.y, player.width, player.height);
 
-  // Handle obstacles
+  // Obstacles
   for (let i = 0; i < obstacles.length; i++) {
     let obs = obstacles[i];
     obs.x -= gameSpeed;
@@ -80,7 +105,7 @@ function update() {
   if (frame % 120 === 0) {
     spawnObstacle();
     score++;
-    gameSpeed += 0.2; // tăng tốc độ dần
+    gameSpeed += 0.2; // tốc độ tăng dần
   }
 
   // Score
