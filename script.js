@@ -1,120 +1,106 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-canvas.width = 800;
-canvas.height = 400;
+canvas.width = 400;
+canvas.height = 600;
 
-// Load images
+// Load hình ảnh
 const playerImg = new Image();
-playerImg.src = "assets/player.png";
+playerImg.src = "images/player.png";
 
 const obstacleImg = new Image();
-obstacleImg.src = "assets/obstacle.png";
+obstacleImg.src = "images/obstacle.png";
 
-const bgImg = new Image();
-bgImg.src = "assets/background.jpg";
-
-// Player
-const player = {
-  x: 100,
-  y: canvas.height - 120,
-  width: 60,
-  height: 60,
-  dy: 0,
-  gravity: 0.6,
-  jumpPower: -12,
-  grounded: false
+// Người chơi
+let player = {
+  x: 180,
+  y: 500,
+  width: 40,
+  height: 40,
+  speed: 5
 };
 
-// Movement
-document.addEventListener("keydown", (e) => {
-  if (e.key === " " || e.key === "ArrowUp") {
-    if (player.grounded) {
-      player.dy = player.jumpPower;
-      player.grounded = false;
-    }
-  }
-});
-
-// Obstacles
+// Chướng ngại vật
 let obstacles = [];
-let gameSpeed = 4;
+let frame = 0;
 let score = 0;
+let speed = 3; // tốc độ ban đầu
 
-// Background scroll
-let bgX = 0;
+// Xử lý phím bấm
+let keys = {};
+document.addEventListener("keydown", (e) => keys[e.key] = true);
+document.addEventListener("keyup", (e) => keys[e.key] = false);
 
-// Spawn obstacle
-function spawnObstacle() {
-  obstacles.push({
-    x: canvas.width,
-    y: canvas.height - 80,
-    width: 50,
-    height: 50
+// Vẽ nhân vật
+function drawPlayer() {
+  ctx.drawImage(playerImg, player.x, player.y, player.width, player.height);
+}
+
+// Vẽ chướng ngại vật
+function drawObstacles() {
+  obstacles.forEach(obs => {
+    ctx.drawImage(obstacleImg, obs.x, obs.y, obs.width, obs.height);
   });
 }
 
-// Collision
-function isColliding(a, b) {
-  return (
-    a.x < b.x + b.width &&
-    a.x + a.width > b.x &&
-    a.y < b.y + b.height &&
-    a.y + a.height > b.y
-  );
-}
-
-let frame = 0;
+// Cập nhật vị trí
 function update() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (keys["ArrowLeft"] && player.x > 0) player.x -= player.speed;
+  if (keys["ArrowRight"] && player.x < canvas.width - player.width) player.x += player.speed;
+  if (keys["ArrowUp"] && player.y > 0) player.y -= player.speed;
+  if (keys["ArrowDown"] && player.y < canvas.height - player.height) player.y += player.speed;
 
-  // Background scroll
-  bgX -= gameSpeed / 2;
-  if (bgX <= -canvas.width) bgX = 0;
-  ctx.drawImage(bgImg, bgX, 0, canvas.width, canvas.height);
-  ctx.drawImage(bgImg, bgX + canvas.width, 0, canvas.width, canvas.height);
-
-  // Player physics
-  player.y += player.dy;
-  player.dy += player.gravity;
-
-  if (player.y + player.height >= canvas.height - 20) {
-    player.y = canvas.height - player.height - 20;
-    player.dy = 0;
-    player.grounded = true;
+  // Thêm chướng ngại vật mới
+  frame++;
+  if (frame % 60 === 0) {
+    let obsX = Math.random() * (canvas.width - 40);
+    obstacles.push({ x: obsX, y: -40, width: 40, height: 40 });
   }
 
-  ctx.drawImage(playerImg, player.x, player.y, player.width, player.height);
+  // Cập nhật vị trí chướng ngại vật
+  obstacles.forEach(obs => {
+    obs.y += speed;
+  });
 
-  // Obstacles
-  for (let i = 0; i < obstacles.length; i++) {
-    let obs = obstacles[i];
-    obs.x -= gameSpeed;
-    ctx.drawImage(obstacleImg, obs.x, obs.y, obs.width, obs.height);
+  // Xoá chướng ngại vật ngoài màn
+  obstacles = obstacles.filter(obs => obs.y < canvas.height);
 
-    if (isColliding(player, obs)) {
-      alert("Game Over! Score: " + score);
+  // Kiểm tra va chạm
+  obstacles.forEach(obs => {
+    if (player.x < obs.x + obs.width &&
+        player.x + player.width > obs.x &&
+        player.y < obs.y + obs.height &&
+        player.y + player.height > obs.y) {
+      alert("💥 Game Over! Điểm của bạn: " + score);
       document.location.reload();
     }
-  }
+  });
 
-  // Remove passed obstacles
-  obstacles = obstacles.filter(obs => obs.x + obs.width > 0);
-
-  // Spawn new obstacles
-  if (frame % 120 === 0) {
-    spawnObstacle();
+  // Tăng điểm & tốc độ dần
+  if (frame % 30 === 0) {
     score++;
-    gameSpeed += 0.2; // tốc độ tăng dần
+    if (score % 10 === 0) speed += 0.5; // mỗi 10 điểm tăng tốc
   }
-
-  // Score
-  ctx.fillStyle = "white";
-  ctx.font = "20px Arial";
-  ctx.fillText("Score: " + score, 10, 30);
-
-  frame++;
-  requestAnimationFrame(update);
 }
 
-update();
+// Vẽ điểm
+function drawScore() {
+  ctx.fillStyle = "white";
+  ctx.font = "20px Arial";
+  ctx.fillText("Điểm: " + score, 10, 30);
+}
+
+// Game loop
+function gameLoop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawPlayer();
+  drawObstacles();
+  drawScore();
+  update();
+  requestAnimationFrame(gameLoop);
+}
+
+// Bắt đầu game khi ảnh đã load
+playerImg.onload = () => {
+  gameLoop();
+};
